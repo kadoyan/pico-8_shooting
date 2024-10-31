@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataFrame to HTML</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="font-sans">
+    <div class="container mx-auto mt-8">
+        <h1 class="text-2xl font-bold">
+			{% if result %}
+			CSV変換後
+			{% else %}
+			CSV変換
+			{% endif %}
+		</h1>
+		
+        <textarea name="" id="" rows="10" class="w-full border border-solid border-slate-600 p-2 rounded-md mt-8">{{ result }}</textarea>
+		<div class="mt-8">
+			<form action="/process_csv" method="post" enctype="multipart/form-data" class="mt-8">
+				<div>
+					<label for="file" class="">CSVファイルを選択:</label>
+					<input type="file" name="file" id="file" required>
+				</div>
+				<button type="submit" class="rounded-md bg-indigo-900 text-white p-4 mt-4">変換する</button>
+			</form>
+		</div>
+    </div>
+</body>
+</html>
