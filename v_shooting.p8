@@ -23,19 +23,26 @@ function game_init()
 	"00602,00A02,01002,01402,01A04,01B04,01C04,01D04,01E04,01F04,02004,02104,02204,02304,02404,02504,02604,02704,02804,02904,02A02,02E03,03202,03603,03A02,03C02,03E03,04202,04402,04A05,04E06,05006,05605,05A06,05C06,06000,06100,06200,06300,06400,06500,06600,06700,06800,06900,06A00,06B00,07001,07206,07406,07601,07806,07A06,07C01,07E06,08006,08201,08406,08606,08807,08A03,08C07,08E03,09007,09207,09407,09603,09807,09A03,09C08,09E02,0A005,0A202,0A405,0A600,0A700,0A800,0A900,0AA00,0AB00,0AC00,0AD00,0AE00,0AF00,0B000"
 	}
 	em_list={}
+	--bg
 end
 
 function _init()
-	poke(0x5F2D,0x1)
+	-- poke(0x5F2D,0x1)
 	game_width=127
-	game_center=flr(game_width/2)
+	game_center=game_width\2
 	game_bottom=117
+	stage=1
 	srand(114)
 	game_init()
 	player = player_obj()
 	player:new()
 	status = game_status()
 	status:new(player)
+	bgcolor={
+		12,0
+	}
+	bg_particles={}
+	bg_clouds=nil
 end
 -- MARK: Update
 function _update60()
@@ -44,6 +51,27 @@ function _update60()
 		if all_em_list[1]!="" then
 			em_list=split(all_em_list[1],",",false)
 		end
+	end
+	-- make bg particles
+	if #bg_particles==0 then
+		for i=1,30 do
+			local particle=bgparticle()
+			local c
+			if stage==1 then
+				c=rnd({7,12})
+			elseif stage==2 then
+				c=rnd({7,6,5,13})
+			end
+			particle:new(bg_particles,c)
+		end
+	end
+	if bg_clouds==nil and stage==1 then
+		bg_clouds=bgcloud()
+		bg_clouds:new(20)
+		-- for i=1,30 do
+		-- 	local cloud=bgcloud()
+		-- 	cloud:new(bg_clouds)
+		-- end
 	end
 
 	g_time+=1
@@ -60,6 +88,13 @@ function _update60()
 	for s in all(smokes) do
 		s:update()
 	end
+	for p in all(bg_particles) do
+		p:update()
+	end
+	-- for c in all(bg_clouds) do
+	-- 	c:update()
+	-- end
+	bg_clouds:update()
 
 	-- MARK: show enemy number
 	-- local key = stat(31)
@@ -103,8 +138,16 @@ end
 
 -- MARK: Draw
 function _draw()
-	cls(12)
+	-- cls(12)
+	cls(bgcolor[stage])
 	camera()
+	for p in all(bg_particles) do
+		p:draw()
+	end
+	-- for c in all(bg_clouds) do
+	-- 	c:draw()
+	-- end
+	bg_clouds:draw()
 	if player.hit>10 then
 		camera(rnd({1,-1}),rnd({1,-1}))
 	end
@@ -131,8 +174,8 @@ function _draw()
 	end
 	player:draw()
 	status:draw()
-	-- print("idx:"..em_index,1,1,7)
-	-- print("time:"..time())
+	-- print("bgp:"..#bg_particles,1,1,7)
+	-- print("time:"..bg_particles[1].y)
 	-- if em_msg[2]>0 then
 	-- 	color(8)
 	-- 	print(em_msg[1].." added")
@@ -523,17 +566,21 @@ end
 -- MARK:collision
 function collision(a,b)
 	if a!=nil and b!=nil then
-		local x1_1, y1_1, x2_1, y2_1 = unpack(a.box)
-		local x1_2, y1_2, x2_2, y2_2 = unpack(b.box)
-		local result = not (x2_1 < x1_2 or x1_1 > x2_2 or y2_1 < y1_2 or y1_1 > y2_2)
-		local atk
-		if a.atk!=nil then atk=a.atk end
-		if b.atk!=nil then atk=b.atk end
-		if result then
-			if a.hp!=nil then a.hp-=atk end
-			if b.hp!=nil then b.hp-=atk end
+		if a.y>-4 and b.y>-4 then
+			local x1_1, y1_1, x2_1, y2_1 = unpack(a.box)
+			local x1_2, y1_2, x2_2, y2_2 = unpack(b.box)
+			local result = not (x2_1 < x1_2 or x1_1 > x2_2 or y2_1 < y1_2 or y1_1 > y2_2)
+			local atk
+			if a.atk!=nil then atk=a.atk end
+			if b.atk!=nil then atk=b.atk end
+			if result then
+				if a.hp!=nil then a.hp-=atk end
+				if b.hp!=nil then b.hp-=atk end
+			end
+			return result
+		else
+			return false
 		end
-		return result
 	else
 		return false
 	end
@@ -597,7 +644,7 @@ function em_straight(p)
 end
 function em_turn(p)
 	p.dx=0
-	if p.y>70 then
+	if p.y>50 then
 		if p.dir==nil then
 			if p.x>player.x then
 				p.dir=-.75
@@ -829,7 +876,7 @@ function set_enemies(id)
 		e:new(enemies,id,x,-16)
 	elseif id==1 then
 		local x=rnd({22,game_width-30})
-		for n=1,3 do
+		for n=1,4 do
 			local e=enemy()
 			e:new(enemies,id,x,-10*n)
 			set_item(e,n,3)
@@ -844,7 +891,7 @@ function set_enemies(id)
 	elseif id==3 then
 		local x,y,dir=
 		(player.x>game_center) and -8 or game_width,
-		max(10,player.y-30),
+		max(10,player.y-70),
 		(player.x>game_center) and -1 or 1
 		for n=1,5 do
 			local e=enemy()
@@ -939,6 +986,94 @@ end
 -- 	end
 -- 	return merge
 -- end
+-->8
+-- background
+function bgparticle()
+	return {
+		new = function(self,tbl,c)
+			self.x,self.y,
+			self.sp,self.c=
+			rnd(120)+4,rnd(120)+4,
+			rnd(1),c
+			add(tbl,self)
+		end,
+		update = function(self)
+			self.y+=self.sp
+			if self.y>128 then
+				self.y=0
+			end
+		end,
+		draw = function(self)
+			pset(self.x,self.y,self.c)
+		end,
+	}
+end
+
+function bgcloud()
+	return {
+		new = function(self,n)
+			self.tbl,self.shadows,self.n={},{},n
+			for i=1,n*2 do
+				add(self.shadows,{
+					x=0,
+					y=rnd(120),
+					r=rnd(8)+8,
+					dir=rnd({1,-1}),
+					sp=rnd(0.5)+0.5
+				})
+			end
+		end,
+		update = function(self)
+			for shadow in all(self.shadows) do
+				shadow.y+=shadow.sp
+				if shadow.y>game_bottom+shadow.r then
+					shadow.y=-shadow.r
+				end
+			end
+			if #self.tbl < self.n then
+				local newcloud = {}
+				newcloud.r,
+				newcloud.dir,
+				newcloud.sp
+				=
+				rnd(10)+8,
+				rnd({1,-1}),
+				rnd(2)+2
+
+				newcloud.y=-newcloud.r
+				add(self.tbl,newcloud)
+			end
+			for cloud in all(self.tbl) do
+				cloud.y+=cloud.sp
+				if cloud.y>game_bottom+cloud.r then
+					del(self.tbl,cloud)
+				end
+			end
+		end,
+		draw = function(self)
+			fillp(▒)
+			for shadow in all(self.shadows) do
+				local x=game_center+(game_center-4)*shadow.dir
+				circfill(x,shadow.y,shadow.r,13)
+			end
+			fillp(0b0101101001011010)
+			for n=1,#self.tbl do
+				local c = (n < #self.tbl/4) and 86 or 103
+				local cloud = self.tbl[n]
+				local x=game_center+game_center*cloud.dir
+				circfill(x,cloud.y,cloud.r,c)
+			end
+			for n=1,#self.tbl do
+				local c = (n < #self.tbl/2) and 103 or 119
+				local cloud = self.tbl[n]
+				local x=game_center+game_center*cloud.dir
+				local shift=cloud.r*.08
+				circfill(x-shift,cloud.y-shift,cloud.r-shift,c)
+			end
+			fillp()
+		end
+	}
+end
 __gfx__
 00000000007007000070700000070700000000000666666000000000000000000000000000766d000001100000aaa90000aaa900000000000000000000000000
 00000000096006900060790000960600000000006677775d0000000000766d0000766d0000782500001a41000acccd900a888290000000000000000000000000
